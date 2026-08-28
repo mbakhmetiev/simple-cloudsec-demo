@@ -11,11 +11,17 @@ grep 'image:' kubernetes.yaml | awk -F'"' '{print $2}' | while read -r src; do
   image="${src##*/}"
   dst="$REGISTRY/$REPO/$image"
 
-  aws ecr describe-repositories --repository-names "$REPO/${image%:*}" \
+  aws ecr describe-repositories \
+    --repository-names "$REPO/${image%:*}" \
     --region us-east-1 >/dev/null 2>&1 ||
-    aws ecr create-repository --repository-name "$REPO/${image%:*}" \
+    aws ecr create-repository \
+      --repository-name "$REPO/${image%:*}" \
       --region us-east-1 >/dev/null
 
-  skopeo copy "docker://$src" "docker://$dst"
+  skopeo \
+    --override-os linux \
+    --override-arch amd64 \
+    copy "docker://$src" "docker://$dst"
+
   sed -i "s|$src|$dst|g" kubernetes.yaml
 done

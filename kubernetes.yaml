@@ -136,7 +136,7 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-catalog:1.6.2"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
@@ -191,7 +191,7 @@ spec:
       containers:
         - name: mysql
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/mysql:8.0"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           env:
             - name: MYSQL_ROOT_PASSWORD
               value: my-secret-pw
@@ -350,7 +350,7 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-cart:1.6.2"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
@@ -405,7 +405,7 @@ spec:
       containers:
         - name: dynamodb
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/aws-dynamodb-local:1.25.1"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: dynamodb
               containerPort: 8000
@@ -591,7 +591,7 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-orders:1.6.2"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
@@ -647,7 +647,7 @@ spec:
       containers:
         - name: postgresql
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/postgres:16.1"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           env:
             - name: POSTGRES_DB
               value: orders
@@ -706,7 +706,7 @@ spec:
       containers:
         - name: rabbitmq
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/rabbitmq:3-management"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
           - name: amqp
             containerPort: 5672
@@ -847,7 +847,7 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-checkout:1.6.2"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
@@ -901,7 +901,7 @@ spec:
       containers:
         - name: redis
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/redis:6.0-alpine"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: redis
               containerPort: 6379
@@ -1028,7 +1028,7 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
           image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-ui:1.6.2"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080

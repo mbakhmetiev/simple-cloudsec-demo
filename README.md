@@ -94,9 +94,9 @@ grep 'image:' kubernetes.yaml | awk -F'"' '{print $2}' | while read -r src; do
 done
 ```
 
-Run the script `copy-images.sh` and the script is complete we should be able to deploy our web-shop with `kubernetes`
+Run the script `copy-images.sh` and the script is complete we should be able to deploy our web-shop with `kubernetes` with new image location
 
 ```bash
-kubectl apply -f https://github.com/aws-containers/retail-store-sample-app/releases/latest/download/kubernetes.yaml
+kubectl apply -f kubernetes.yaml
 kubectl wait --for=condition=available deployments --all
 ```
