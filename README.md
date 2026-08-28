@@ -8,7 +8,7 @@ In my project I'll be using registered domain name that can be used to access th
 
 I've registered mine with [OVHcoud](https://www.ovhcloud.com/fr/domains/tld/fr/)
 
-## Deploy an `eks`` cluster
+## Deploy an `eks` cluster
 
 1. Install `eksctl` as per this [guide](https://docs.aws.amazon.com/eks/latest/eksctl/installation.html) and `aws cli` as per this [guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions)
 
