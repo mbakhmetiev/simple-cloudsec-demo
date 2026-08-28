@@ -135,7 +135,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
-          image: "public.ecr.aws/aws-containers/retail-store-sample-catalog:1.6.2"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-catalog:1.6.2"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -190,7 +190,7 @@ spec:
     spec:
       containers:
         - name: mysql
-          image: "public.ecr.aws/docker/library/mysql:8.0"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/mysql:8.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: MYSQL_ROOT_PASSWORD
@@ -349,7 +349,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
-          image: "public.ecr.aws/aws-containers/retail-store-sample-cart:1.6.2"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-cart:1.6.2"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -404,7 +404,7 @@ spec:
     spec:
       containers:
         - name: dynamodb
-          image: "public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:1.25.1"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/aws-dynamodb-local:1.25.1"
           imagePullPolicy: IfNotPresent
           ports:
             - name: dynamodb
@@ -590,7 +590,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
-          image: "public.ecr.aws/aws-containers/retail-store-sample-orders:1.6.2"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-orders:1.6.2"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -646,7 +646,7 @@ spec:
     spec:
       containers:
         - name: postgresql
-          image: "public.ecr.aws/docker/library/postgres:16.1"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/postgres:16.1"
           imagePullPolicy: IfNotPresent
           env:
             - name: POSTGRES_DB
@@ -705,7 +705,7 @@ spec:
     spec:
       containers:
         - name: rabbitmq
-          image: "public.ecr.aws/docker/library/rabbitmq:3-management"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/rabbitmq:3-management"
           imagePullPolicy: IfNotPresent
           ports:
           - name: amqp
@@ -846,7 +846,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
-          image: "public.ecr.aws/aws-containers/retail-store-sample-checkout:1.6.2"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-checkout:1.6.2"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -900,7 +900,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: "redis:6.0-alpine"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/redis:6.0-alpine"
           imagePullPolicy: IfNotPresent
           ports:
             - name: redis
@@ -1027,7 +1027,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 1000
-          image: "public.ecr.aws/aws-containers/retail-store-sample-ui:1.6.2"
+          image: "925517157861.dkr.ecr.us-east-1.amazonaws.com/simple-cloudsec-demo/retail-store-sample-ui:1.6.2"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
