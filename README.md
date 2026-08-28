@@ -8,9 +8,9 @@ In my project I'll be using registered domain name that can be used to access th
 
 I've registered mine with [OVHcoud](https://www.ovhcloud.com/fr/domains/tld/fr/)
 
-## Deploy eks cluster
+## Deploy an `eks`` cluster
 
-1. Install `eksctl` as per this [guide](https://docs.aws.amazon.com/eks/latest/eksctl/installation.html) and aws cli as per this [guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions)
+1. Install `eksctl` as per this [guide](https://docs.aws.amazon.com/eks/latest/eksctl/installation.html) and `aws cli` as per this [guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions)
 
 2. Authenticate to AWS. Download the access key and use this script to verify the authentication status
 
@@ -36,7 +36,9 @@ if [ $? -eq 0 ]
 fi
 ```
 
-Specify your region, to run the script pass the access key file as an argument to the script `aws_auth.sh <access-key.csv>`
+Specify your region, to run the script pass the access key file as an argument to the script
+
+| `$ aws_auth.sh <access-key.csv>`
 
 1. Create the eks cluster
 
@@ -44,7 +46,9 @@ Specify your region, to run the script pass the access key file as an argument t
 export eks-region="us-east-1"
 export eks-version="1.31"
 export eks-name="deb-test100"
-eksctl create cluster --name dev-test100 --version ${eks-version} --region ${eks-region} --nodegroup-name workers --node-type t3.medium --nodes 3 --nodes-min 1 --nodes-max 3 --managed
+eksctl create cluster --name ${eks-name} --version ${eks-version} \
+--region ${eks-region} --nodegroup-name workers --node-type t3.medium \
+--nodes 3 --nodes-min 1 --nodes-max 3 --managed
 eksctl get cluster
 aws eks update-kubeconfig --name ${eks-name} --region ${eks-region}
 ```
