@@ -43,12 +43,53 @@ Specify your region, to run the script pass the access key file as an argument t
 1. Create the eks cluster
 
 ```bash
-export eks-region="us-east-1"
-export eks-version="1.31"
-export eks-name="deb-test100"
-eksctl create cluster --name ${eks-name} --version ${eks-version} \
---region ${eks-region} --nodegroup-name workers --node-type t3.medium \
+export eks_region="us-east-1"
+export eks_version="1.31"
+export eks_name="deb-test100"
+eksctl create cluster --name ${eks_name} --version ${eks_version} \
+--region ${eks_region} --nodegroup-name workers --node-type t3.medium \
 --nodes 3 --nodes-min 1 --nodes-max 3 --managed
 eksctl get cluster
-aws eks update-kubeconfig --name ${eks-name} --region ${eks-region}
+aws eks update-kubeconfig --name ${eks_name} --region ${eks_region}
+```
+
+Verify the cluster is running
+
+```bash
+kubectl get nodes
+```
+
+1. Prepare the images
+
+The idea of this cloud security demo project is to have all the resources in our control
+In the reference [retail-store-sample-app](https://github.com/aws-containers/retail-store-sample-app) project the images are stored in the public AWS registry. We'll move all images to our AWS project to be able to onboard that repository for vulnerability scanning with the CNAPP solution we'll be demoing.
+
+From the reference project `kubernetes` installation option we can locate the yaml manifest that we would use to deploy the target infrastructure
+
+`$wget https://github.com/aws-containers/retail-store-sample-app/releases/latest/download/kubernetes.yaml`
+
+We need to create a private registry and then use it int the script below which parses the actual image locations in puclic aws ecr and copy them with `skopeo` to our private registry and then update the `kubernetes.yaml` with new images location
+
+```bash
+#!/usr/bin/env bash
+set -e
+
+REGISTRY="925517157861.dkr.ecr.us-east-1.amazonaws.com"
+REPO="simple-cloudsec-demo"
+
+aws ecr get-login-password --region us-east-1 |
+  skopeo login --username AWS --password-stdin "$REGISTRY"
+
+grep 'image:' kubernetes.yaml | awk -F'"' '{print $2}' | while read -r src; do
+  image="${src##*/}"
+  dst="$REGISTRY/$REPO/$image"
+
+  aws ecr describe-repositories --repository-names "$REPO/${image%:*}" \
+    --region us-east-1 >/dev/null 2>&1 ||
+  aws ecr create-repository --repository-name "$REPO/${image%:*}" \
+    --region us-east-1 >/dev/null
+
+  skopeo copy "docker://$src" "docker://$dst"
+  sed -i "s|$src|$dst|g" kubernetes.yaml
+done
 ```
