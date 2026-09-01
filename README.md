@@ -250,3 +250,92 @@ aws acm wait certificate-validated \
   --certificate-arn "$CERT_ARN" \
   --region us-east-1
 ```
+
+Check the certificate and obtain the DNS validation record
+
+```bash
+aws acm describe-certificate \
+  --certificate-arn "$CERT_ARN" \
+  --region us-east-1 \
+  --query 'Certificate.DomainValidationOptions'
+```
+
+Extract the validation CNAME name:
+
+```bash
+VALIDATION_NAME=$(aws acm describe-certificate \
+  --certificate-arn "$CERT_ARN" \
+  --region us-east-1 \
+  --query 'Certificate.DomainValidationOptions[0].ResourceRecord.Name' \
+  --output text)
+
+echo "$VALIDATION_NAME"
+```
+
+Get the CNAME target:
+
+```bash
+VALIDATION_VALUE=$(aws acm describe-certificate \
+  --certificate-arn "$CERT_ARN" \
+  --region us-east-1 \
+  --query 'Certificate.DomainValidationOptions[0].ResourceRecord.Value' \
+  --output text)
+
+echo "$VALIDATION_VALUE"
+```
+
+Get the existing Route 53 hosted-zone ID
+We already had cloudsec-demos.fr delegated from OVHcloud to Route 53.
+
+```bash
+ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+  --dns-name cloudsec-demos.fr \
+  --query "HostedZones[?Name=='cloudsec-demos.fr.'].Id | [0]" \
+  --output text)
+
+echo "$ZONE_ID"
+```
+
+Create the ACM validation CNAME in Route 53:
+
+```bash
+aws route53 change-resource-record-sets \
+  --hosted-zone-id "$ZONE_ID" \
+  --change-batch "{
+    \"Changes\": [{
+      \"Action\": \"UPSERT\",
+      \"ResourceRecordSet\": {
+        \"Name\": \"$VALIDATION_NAME\",
+        \"Type\": \"CNAME\",
+        \"TTL\": 300,
+        \"ResourceRecords\": [{
+          \"Value\": \"$VALIDATION_VALUE\"
+        }]
+      }
+    }]
+  }"
+```
+
+Verify the validation record directly against Route 53
+
+```bash
+dig CNAME "$VALIDATION_NAME" @ns-430.awsdns-53.com
+```
+
+Check ACM status
+
+```bash
+aws acm wait certificate-validated \
+  --certificate-arn "$CERT_ARN" \
+  --region us-east-1
+```
+
+Check if the certificate is issued
+
+```bash
+aws acm describe-certificate \
+  --certificate-arn "$CERT_ARN" \
+  --region us-east-1 \
+  --query 'Certificate.Status' \
+  --output text
+```
