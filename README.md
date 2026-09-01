@@ -194,3 +194,21 @@ aws route53 get-hosted-zone \
 +---------------------------+
 
 ```
+
+Configure AWS zones at OVHcloud
+
+Because OVHcloud remains the registrar, we need to change the domain's authoritative nameservers at OVH from the OVH DNS servers to those four AWS servers.
+
+We changed its DNS delegation and thus domains will be transferred to AWS.
+To verify:
+
+```bash
+dig NS cloudsec-demos.fr +short
+
+ns-1823.awsdns-35.co.uk.
+ns-430.awsdns-53.com.
+ns-963.awsdns-56.net.
+ns-1491.awsdns-58.org.
+```
+
+This confirms that Route 53 had become authoritative for the domain.
