@@ -139,3 +139,17 @@ To remove the application use kubectl again:
 ## Setup DNS and TLS certificate to access the web-shop via <https://cloudsec-demos.fr>
 
 ### 1. DNS Setup
+
+We need to delegate `cloudsec-demos.fr` from OVHcloud to an AWS Route 53 public hosted zone.
+
+Overall the process would follow these steps:
+
+```bash
+OVHcloud = domain registrar
+        │
+        │ NS delegation
+        ▼
+AWS Route 53 = authoritative DNS
+        │
+        └── later: shop.cloudsec-demos.fr → ALB
+```
