@@ -532,3 +532,56 @@ HTTP/2 200
 date: Tue, 01 Sep 2026 21:09:16 GMT
 content-type: text/plain;charset=UTF-8
 ```
+
+## Tear down the web-shop
+
+To tear down the web-shop and to be able to recreate it easily for later use,
+we would follow this procedure:
+
+### 1. Keep what can be reused and takes time to recreate
+
+```bash
+ECR repositories + images
+Route 53 hosted zone
+cloudsec-demos.fr DNS delegation at OVH
+ACM certificate + validation CNAME
+local project files/scripts
+```
+
+First delete the Ingress and let AWS Load Balancer Controller remove the ALB:
+
+```bash
+kubectl delete -f ingress.yaml
+```
+
+Watch until the ALB disappears:
+
+```bash
+aws elbv2 describe-load-balancers \
+  --region us-east-1 \
+  --query 'LoadBalancers[].{Name:LoadBalancerName,DNS:DNSName}' \
+  --output table
+```
+
+Then delete the application:
+
+```bash
+kubectl delete -f kubernetes.yaml
+```
+
+Then delete the EKS cluster:
+
+```bash
+eksctl delete cluster \
+  --name deb-test100 \
+  --region us-east-1
+```
+
+Delete the apex ALB alias because that particular ALB is about to disappear, every new ALB will get a new DNS name.
+
+```bash
+ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+  --dns-name cloudsec-demos.fr \
+  --query "HostedZones[?Name=='cloudsec-demos.fr.'].Id | [0]" \
+  --output text)
+```
