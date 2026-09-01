@@ -10,9 +10,9 @@ I've registered mine with [OVHcoud](https://www.ovhcloud.com/fr/domains/tld/fr/)
 
 ## Deploy an `eks` cluster
 
-1. Install `eksctl` as per this [guide](https://docs.aws.amazon.com/eks/latest/eksctl/installation.html) and `aws cli` as per this [guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions)
+### 1. Install `eksctl` as per this [guide](https://docs.aws.amazon.com/eks/latest/eksctl/installation.html) and `aws cli` as per this [guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions)
 
-2. Authenticate to AWS. Download the access key and use this script to verify the authentication status
+### 2. Authenticate to AWS. Download the access key and use this script to verify the authentication status
 
 ```bash
 #!/usr/bin/bash
@@ -40,7 +40,7 @@ Specify your region, to run the script pass the access key file as an argument t
 
 | `$ aws_auth.sh <access-key.csv>`
 
-1. Create the eks cluster
+### 3. Create the eks cluster
 
 ```bash
 export eks_region="us-east-1"
@@ -59,7 +59,9 @@ Verify the cluster is running
 kubectl get nodes
 ```
 
-1. Prepare the images
+## Deploy the web-shop with kubernetes
+
+### 1. Prepare the images
 
 The idea of this cloud security demo project is to have all the resources in our control
 In the reference [retail-store-sample-app](https://github.com/aws-containers/retail-store-sample-app) project the images are stored in the public AWS registry. We'll move all images to our AWS project to be able to onboard that repository for vulnerability scanning with the CNAPP solution we'll be demoing.
@@ -68,35 +70,72 @@ From the reference project `kubernetes` installation option we can locate the ya
 
 `$wget https://github.com/aws-containers/retail-store-sample-app/releases/latest/download/kubernetes.yaml`
 
-We need to create a private registry and then use it int the script below which parses the actual image locations in public aws ecr and copy them with `skopeo` to our private registry and then update the `kubernetes.yaml` with new images location
+We need to create a private registry and then use it int the script below which parses the actual image locations in puclic aws ecr and copy them with `skopeo` to our private registry and then update the `kubernetes.yaml` with new images location
 
 ```bash
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
+REGION="us-east-1"
 REGISTRY="925517157861.dkr.ecr.us-east-1.amazonaws.com"
 REPO="simple-cloudsec-demo"
 
-aws ecr get-login-password --region us-east-1 |
+aws ecr get-login-password --region "$REGION" |
   skopeo login --username AWS --password-stdin "$REGISTRY"
 
-grep 'image:' kubernetes.yaml | awk -F'"' '{print $2}' | while read -r src; do
+grep 'image:' kubernetes.yaml |
+awk -F'"' '{print $2}' |
+while read -r src; do
+
+  # Skip images already pointing to our private ECR
+  if [[ "$src" == "$REGISTRY/"* ]]; then
+    echo "Skipping already mirrored image: $src"
+    continue
+  fi
+
   image="${src##*/}"
-  dst="$REGISTRY/$REPO/$image"
+  repo_name="$REPO/${image%:*}"
+  dst="$REGISTRY/$repo_name:${image##*:}"
 
-  aws ecr describe-repositories --repository-names "$REPO/${image%:*}" \
-    --region us-east-1 >/dev/null 2>&1 ||
-  aws ecr create-repository --repository-name "$REPO/${image%:*}" \
-    --region us-east-1 >/dev/null
+  echo
+  echo "$src"
+  echo "  -> $dst"
 
-  skopeo copy "docker://$src" "docker://$dst"
+  aws ecr describe-repositories \
+    --repository-names "$repo_name" \
+    --region "$REGION" >/dev/null 2>&1 ||
+  aws ecr create-repository \
+    --repository-name "$repo_name" \
+    --region "$REGION" >/dev/null
+
+  skopeo \
+    --override-os linux \
+    --override-arch amd64 \
+    copy \
+    "docker://$src" \
+    "docker://$dst"
+
   sed -i "s|$src|$dst|g" kubernetes.yaml
 done
 ```
 
-Run the script `copy-images.sh` and the script is complete we should be able to deploy our web-shop with `kubernetes` with new image location
+### 2. Kubernetes deployment
+
+Run the script `copy-images.sh` and once the script is complete we should be able to deploy our web-shop with `kubernetes` with new images location
 
 ```bash
 kubectl apply -f kubernetes.yaml
 kubectl wait --for=condition=available deployments --all
 ```
+
+Get the URL for the frontend load balancer like so:
+
+`kubectl get svc ui`
+
+To remove the application use kubectl again:
+
+`kubectl delete -f kubernetes.yaml`
+
+## Setup DNS and TLS certificate to access the web-shop via <https://cloudsec-demos.fr>
+
+### 1. DNS Setup
