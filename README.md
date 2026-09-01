@@ -151,5 +151,46 @@ OVHcloud = domain registrar
         ▼
 AWS Route 53 = authoritative DNS
         │
-        └── later: shop.cloudsec-demos.fr → ALB
+        └── shop.cloudsec-demos.fr → ALB
+```
+
+Create `Route 53` hosted zone
+
+```bash
+aws route53 create-hosted-zone \
+  --name cloudsec-demos.fr \
+  --caller-reference "$(date +%s)"
+```
+
+Check the zone was created
+
+```bash
+aws route53 list-hosted-zones-by-name \
+  --dns-name cloudsec-demos.fr
+```
+
+We need `Zone ID` to retrive AWS authoritative nameservers
+
+```bash
+ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+  --dns-name cloudsec-demos.fr \
+  --query "HostedZones[?Name=='cloudsec-demos.fr.'].Id | [0]" \
+  --output text)
+
+echo "$ZONE_ID"
+
+aws route53 get-hosted-zone \
+  --id "$ZONE_ID" \
+  --query 'DelegationSet.NameServers' \
+  --output table
+
+-----------------------------
+|       GetHostedZone       |
++---------------------------+
+|  ns-430.awsdns-53.com     |
+|  ns-1491.awsdns-58.org    |
+|  ns-1823.awsdns-35.co.uk  |
+|  ns-963.awsdns-56.net     |
++---------------------------+
+
 ```
