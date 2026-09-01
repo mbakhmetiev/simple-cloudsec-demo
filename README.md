@@ -68,7 +68,7 @@ From the reference project `kubernetes` installation option we can locate the ya
 
 `$wget https://github.com/aws-containers/retail-store-sample-app/releases/latest/download/kubernetes.yaml`
 
-We need to create a private registry and then use it int the script below which parses the actual image locations in puclic aws ecr and copy them with `skopeo` to our private registry and then update the `kubernetes.yaml` with new images location
+We need to create a private registry and then use it int the script below which parses the actual image locations in public aws ecr and copy them with `skopeo` to our private registry and then update the `kubernetes.yaml` with new images location
 
 ```bash
 #!/usr/bin/env bash
