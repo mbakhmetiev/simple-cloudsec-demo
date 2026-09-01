@@ -339,3 +339,79 @@ aws acm describe-certificate \
   --query 'Certificate.Status' \
   --output text
 ```
+
+### 3. Deploy the `ALB`
+
+Set the variables to be referenced in the commands below
+
+```bash
+export CLUSTER_NAME=deb-test100
+export AWS_REGION=us-east-1
+export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+```
+
+Associate the cluster's OIDC provider:
+
+```bash
+eksctl utils associate-iam-oidc-provider \
+  --cluster "$CLUSTER_NAME" \
+  --region "$AWS_REGION" \
+  --approve
+```
+
+Download the controller IAM policy:
+
+```bash
+curl -O \
+https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.14.1/docs/install/iam_policy.json
+```
+
+Create the IAM policy:
+
+```bash
+aws iam create-policy \
+  --policy-name AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam_policy.json
+```
+
+Create the Kubernetes ServiceAccount and its IAM role:
+
+```bash
+eksctl create iamserviceaccount \
+  --cluster "$CLUSTER_NAME" \
+  --namespace kube-system \
+  --name aws-load-balancer-controller \
+  --attach-policy-arn "arn:aws:iam::$ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy" \
+  --override-existing-serviceaccounts \
+  --region "$AWS_REGION" \
+  --approve
+```
+
+Verify the ServiceAccount has an IAM role:
+
+```bash
+kubectl get sa aws-load-balancer-controller \
+  -n kube-system \
+  -o yaml
+```
+
+Install the ALB:
+
+```bash
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update eks
+
+helm install aws-load-balancer-controller \
+  eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName="$CLUSTER_NAME" \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --version 1.14.0
+```
+
+Verify the load-balancer is installed and running:
+
+```bash
+kubectl get deployment -n kube-system aws-load-balancer-controller
+```
