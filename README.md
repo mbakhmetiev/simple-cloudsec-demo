@@ -415,3 +415,120 @@ Verify the load-balancer is installed and running:
 ```bash
 kubectl get deployment -n kube-system aws-load-balancer-controller
 ```
+
+### 4. Install the Ingress
+
+The ingress `yaml` should reference earlier created `ACM certificate ARN` and the `ALB`
+
+```bash
+CERT_ARN=$(aws acm list-certificates \
+  --region us-east-1 \
+  --query "CertificateSummaryList[?DomainName=='cloudsec-demos.fr'].CertificateArn | [0]" \
+  --output text)
+
+echo "$CERT_ARN"
+
+cat > ingress.yaml <<EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: retail-store-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: $CERT_ARN
+
+spec:
+  ingressClassName: alb
+
+  rules:
+    - host: cloudsec-demos.fr
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ui
+                port:
+                  number: 80
+EOF
+```
+
+Create the Route 53 record for the apex domain
+First get the ALB DNS name from the Ingress:
+
+```bash
+kubectl get ingress retail-store-ingress \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'; echo
+```
+
+Then get the ALB's hosted zone ID:
+
+```bash
+ALB_DNS=$(kubectl get ingress retail-store-ingress \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+ALB_ZONE_ID=$(aws elbv2 describe-load-balancers \
+  --region us-east-1 \
+  --query "LoadBalancers[?DNSName=='$ALB_DNS'].CanonicalHostedZoneId | [0]" \
+  --output text)
+
+echo "$ALB_DNS"
+echo "$ALB_ZONE_ID"
+```
+
+Now get your Route 53 hosted-zone ID:
+
+```bash
+ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+  --dns-name cloudsec-demos.fr \
+  --query "HostedZones[?Name=='cloudsec-demos.fr.'].Id | [0]" \
+  --output text)
+
+echo "$ZONE_ID"
+```
+
+Then create the apex A Alias:
+
+```bash
+aws route53 change-resource-record-sets \
+  --hosted-zone-id "$ZONE_ID" \
+  --change-batch "{
+    \"Changes\": [{
+      \"Action\": \"UPSERT\",
+      \"ResourceRecordSet\": {
+        \"Name\": \"cloudsec-demos.fr\",
+        \"Type\": \"A\",
+        \"AliasTarget\": {
+          \"HostedZoneId\": \"$ALB_ZONE_ID\",
+          \"DNSName\": \"$ALB_DNS\",
+          \"EvaluateTargetHealth\": false
+        }
+      }
+    }]
+  }"
+```
+
+Verify:
+
+```bash
+dig +short cloudsec-demos.fr
+```
+
+Test the site is up and running and is ready to be used in a demo
+
+```bash
+curl -I https://cloudsec-demos.fr
+```
+
+And final verification, the vulenerabl web-shop for demo purposes is up and running
+
+```bash
+ curl -I https://cloudsec-demos.fr
+HTTP/2 200
+date: Tue, 01 Sep 2026 21:09:16 GMT
+content-type: text/plain;charset=UTF-8
+```
