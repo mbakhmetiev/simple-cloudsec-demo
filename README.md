@@ -8,11 +8,17 @@ In my project I'll be using registered domain name that can be used to access th
 
 I've registered mine with [OVHcoud](https://www.ovhcloud.com/fr/domains/tld/fr/)
 
+The web-shop created with this project can be used without a domain name, in the kubernetes deployment section below, after the microservices are deployed, the web-shop can be accessed via the URL of `ui` kubernetes service. The DNS, TLS ans ALB/Ingress section are for the deployment of the web-shop accessible via https
+
 ## Deploy an `eks` cluster
 
-### 1. Install `eksctl` as per this [guide](https://docs.aws.amazon.com/eks/latest/eksctl/installation.html) and `aws cli` as per this [guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions)
+### 1. Install `eksctl` and `aws cli`
 
-### 2. Authenticate to AWS. Download the access key and use this script to verify the authentication status
+Use this [guide](https://docs.aws.amazon.com/eks/latest/eksctl/installation.html) to install `eksctl` and `aws cli` as per this [guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions)
+
+### 2. Authenticate to AWS
+
+Dkownload the access key and use this script to verify the authentication status
 
 ```bash
 #!/usr/bin/bash
@@ -212,3 +218,35 @@ ns-1491.awsdns-58.org.
 ```
 
 This confirms that Route 53 had become authoritative for the domain.
+
+### 2. TLS certificate
+
+Request the certificate
+
+```bash
+CERT_ARN=$(aws acm request-certificate \
+  --domain-name cloudsec-demos.fr \
+  --validation-method DNS \
+  --region us-east-1 \
+  --query CertificateArn \
+  --output text)
+
+echo "$CERT_ARN"
+```
+
+Get the validation record:
+
+```bash
+aws acm describe-certificate \
+  --certificate-arn "$CERT_ARN" \
+  --region us-east-1 \
+  --query 'Certificate.DomainValidationOptions[0].ResourceRecord'
+```
+
+Create that CNAME in the existing Route 53 zone exactly as before, then wait for:
+
+```bash
+aws acm wait certificate-validated \
+  --certificate-arn "$CERT_ARN" \
+  --region us-east-1
+```
