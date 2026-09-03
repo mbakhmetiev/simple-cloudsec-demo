@@ -340,26 +340,32 @@ Required only for the external-access path:
 
 # 1. Authenticate to AWS
 
-The preferred authentication method is AWS IAM Identity Center (SSO) or another source of temporary AWS credentials.
+This project can use standard AWS CLI credentials for a standalone personal lab.
+
+Configure the AWS CLI:
 
 ```bash
-aws configure sso
-
-aws sso login \
-  --profile cloudsec-demo
-
-export AWS_PROFILE=cloudsec-demo
+aws configure
 ```
 
-Verify the AWS identity:
+Provide the access key, secret access key, default region, and preferred output format:
+
+```text
+AWS Access Key ID: <access-key>
+AWS Secret Access Key: <secret-key>
+Default region name: us-east-1
+Default output format: json
+```
+
+Verify the active AWS identity before creating any resources:
 
 ```bash
 aws sts get-caller-identity
 ```
 
-For a personal lab, long-lived IAM access keys can also be used, but they should not be the preferred authentication mechanism.
-
----
+> **Security note:** Never use root-user access keys, store AWS credentials in the repository, or embed credentials directly in scripts. Access keys used for a lab should belong to a dedicated IAM identity, be granted only the permissions required by the project, and be rotated or removed when no longer required.
+>
+> In an enterprise or multi-account AWS environment, temporary credentials through AWS IAM Identity Center (SSO) or another federated identity provider would generally be preferred over long-lived IAM user credentials.
 
 # 2. Define project variables
 
