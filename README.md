@@ -18,7 +18,7 @@ Use this [guide](https://docs.aws.amazon.com/eks/latest/eksctl/installation.html
 
 ### 2. Authenticate to AWS
 
-Dkownload the access key and use this script to verify the authentication status
+#### Download the access key and use this script to verify the authentication status
 
 ```bash
 #!/usr/bin/bash
@@ -59,7 +59,7 @@ eksctl get cluster
 aws eks update-kubeconfig --name ${eks_name} --region ${eks_region}
 ```
 
-Verify the cluster is running
+#### Verify the cluster is running
 
 ```bash
 kubectl get nodes
@@ -127,7 +127,8 @@ done
 
 ### 2. Kubernetes deployment
 
-Run the script `copy-images.sh` and once the script is complete we should be able to deploy our web-shop with `kubernetes` with new images location
+Run the script `copy-images.sh` and once the script is complete we should be able to
+deploy our web-shop with `kubernetes` with new images location
 
 ```bash
 kubectl apply -f kubernetes.yaml
@@ -138,7 +139,7 @@ Get the URL for the frontend load balancer like so:
 
 `kubectl get svc ui`
 
-To remove the application use kubectl again:
+To remove the application if needed use `kubectl`` again:
 
 `kubectl delete -f kubernetes.yaml`
 
@@ -160,7 +161,7 @@ AWS Route 53 = authoritative DNS
         └── shop.cloudsec-demos.fr → ALB
 ```
 
-Create `Route 53` hosted zone
+#### Create `Route 53` hosted zone
 
 ```bash
 aws route53 create-hosted-zone \
@@ -168,7 +169,7 @@ aws route53 create-hosted-zone \
   --caller-reference "$(date +%s)"
 ```
 
-Check the zone was created
+#### Check the zone was created
 
 ```bash
 aws route53 list-hosted-zones-by-name \
@@ -201,9 +202,10 @@ aws route53 get-hosted-zone \
 
 ```
 
-Configure AWS zones at OVHcloud
+#### Configure AWS zones at OVHcloud
 
-Because OVHcloud remains the registrar, we need to change the domain's authoritative nameservers at OVH from the OVH DNS servers to those four AWS servers.
+Because OVHcloud remains the registrar, we need to change the domain's authoritative nameservers at
+OVH from the OVH DNS servers to those four AWS servers.
 
 We changed its DNS delegation and thus domains will be transferred to AWS.
 To verify:
@@ -221,11 +223,20 @@ This confirms that Route 53 had become authoritative for the domain.
 
 ### 2. TLS certificate
 
-Request the certificate
+Request a public ACM certificate covering both the apex domain and all first-level subdomains:
+
+- `cloudsec-demos.fr`
+- `*.cloudsec-demos.fr`
+
+The wildcard covers names such as `www.cloudsec-demos.fr`, `shop.cloudsec-demos.fr`, and `api.cloudsec-demos.fr`.
+It does not cover the apex `cloudsec-demos.fr` itself, which is why both names are included.
+
+#### Request the certificate
 
 ```bash
 CERT_ARN=$(aws acm request-certificate \
   --domain-name cloudsec-demos.fr \
+  --subject-alternative-names "*.cloudsec-demos.fr" \
   --validation-method DNS \
   --region us-east-1 \
   --query CertificateArn \
@@ -234,30 +245,28 @@ CERT_ARN=$(aws acm request-certificate \
 echo "$CERT_ARN"
 ```
 
-Get the validation record:
+#### Check the certificate and obtain the DNS validation records
 
 ```bash
 aws acm describe-certificate \
   --certificate-arn "$CERT_ARN" \
   --region us-east-1 \
-  --query 'Certificate.DomainValidationOptions[0].ResourceRecord'
+  --query 'Certificate.DomainValidationOptions[].{
+    Domain:DomainName,
+    Name:ResourceRecord.Name,
+    Type:ResourceRecord.Type,
+    Value:ResourceRecord.Value
+  }' \
+  --output table
 ```
 
-Create that CNAME in the existing Route 53 zone exactly as before, then wait for:
+For the apex domain and its wildcard, ACM may return the same validation CNAME for both names. For example:
 
-```bash
-aws acm wait certificate-validated \
-  --certificate-arn "$CERT_ARN" \
-  --region us-east-1
-```
-
-Check the certificate and obtain the DNS validation record
-
-```bash
-aws acm describe-certificate \
-  --certificate-arn "$CERT_ARN" \
-  --region us-east-1 \
-  --query 'Certificate.DomainValidationOptions'
+```text
+cloudsec-demos.fr
+*.cloudsec-demos.fr
+        │
+        └── same DNS validation CNAME
 ```
 
 Extract the validation CNAME name:
@@ -272,7 +281,7 @@ VALIDATION_NAME=$(aws acm describe-certificate \
 echo "$VALIDATION_NAME"
 ```
 
-Get the CNAME target:
+Extract the CNAME target:
 
 ```bash
 VALIDATION_VALUE=$(aws acm describe-certificate \
@@ -284,8 +293,9 @@ VALIDATION_VALUE=$(aws acm describe-certificate \
 echo "$VALIDATION_VALUE"
 ```
 
-Get the existing Route 53 hosted-zone ID
-We already had cloudsec-demos.fr delegated from OVHcloud to Route 53.
+#### Get the existing Route 53 hosted-zone ID
+
+The domain `cloudsec-demos.fr` is already delegated from OVHcloud to Route 53.
 
 ```bash
 ZONE_ID=$(aws route53 list-hosted-zones-by-name \
@@ -296,7 +306,7 @@ ZONE_ID=$(aws route53 list-hosted-zones-by-name \
 echo "$ZONE_ID"
 ```
 
-Create the ACM validation CNAME in Route 53:
+#### Create the ACM validation CNAME in Route 53
 
 ```bash
 aws route53 change-resource-record-sets \
@@ -316,13 +326,20 @@ aws route53 change-resource-record-sets \
   }"
 ```
 
-Verify the validation record directly against Route 53
+If the validation CNAME already exists from a previous ACM certificate for the same domain, ACM may reuse it.
+In that case, the `UPSERT` operation simply ensures that the correct record is present.
+
+Do not remove the validation CNAME after the certificate has been issued. ACM can use this record for automatic certificate renewal.
+
+#### Verify the validation record directly against Route 53
 
 ```bash
-dig CNAME "$VALIDATION_NAME" @ns-430.awsdns-53.com
+dig +short CNAME "$VALIDATION_NAME" @ns-430.awsdns-53.com
 ```
 
-Check ACM status
+The result should match `$VALIDATION_VALUE`.
+
+#### Wait for ACM validation
 
 ```bash
 aws acm wait certificate-validated \
@@ -330,19 +347,35 @@ aws acm wait certificate-validated \
   --region us-east-1
 ```
 
-Check if the certificate is issued
+#### Verify that the certificate has been issued
 
 ```bash
 aws acm describe-certificate \
   --certificate-arn "$CERT_ARN" \
   --region us-east-1 \
-  --query 'Certificate.Status' \
-  --output text
+  --query 'Certificate.{Status:Status,Domain:DomainName,SANs:SubjectAlternativeNames}' \
+  --output json
+```
+
+Expected result:
+
+```json
+{
+  "Status": "ISSUED",
+  "Domain": "cloudsec-demos.fr",
+  "SANs": ["cloudsec-demos.fr", "*.cloudsec-demos.fr"]
+}
+```
+
+The certificate can now be attached to the ALB HTTPS listener through the AWS Load Balancer Controller Ingress annotation:
+
+```yaml
+alb.ingress.kubernetes.io/certificate-arn: <CERT_ARN>
 ```
 
 ### 3. Deploy the `ALB`
 
-Set the variables to be referenced in the commands below
+#### Set the variables to be referenced in the commands below
 
 ```bash
 export CLUSTER_NAME=deb-test100
@@ -350,7 +383,7 @@ export AWS_REGION=us-east-1
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ```
 
-Associate the cluster's OIDC provider:
+#### Associate the cluster's OIDC provider
 
 ```bash
 eksctl utils associate-iam-oidc-provider \
@@ -359,14 +392,14 @@ eksctl utils associate-iam-oidc-provider \
   --approve
 ```
 
-Download the controller IAM policy:
+#### Download the controller IAM policy
 
 ```bash
 curl -O \
 https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.14.1/docs/install/iam_policy.json
 ```
 
-Create the IAM policy:
+#### Create the IAM policy
 
 ```bash
 aws iam create-policy \
@@ -374,7 +407,7 @@ aws iam create-policy \
   --policy-document file://iam_policy.json
 ```
 
-Create the Kubernetes ServiceAccount and its IAM role:
+#### Create the Kubernetes ServiceAccount and its IAM role
 
 ```bash
 eksctl create iamserviceaccount \
@@ -387,7 +420,7 @@ eksctl create iamserviceaccount \
   --approve
 ```
 
-Verify the ServiceAccount has an IAM role:
+#### Verify the ServiceAccount has an IAM role
 
 ```bash
 kubectl get sa aws-load-balancer-controller \
@@ -395,7 +428,7 @@ kubectl get sa aws-load-balancer-controller \
   -o yaml
 ```
 
-Install the ALB:
+#### Install the ALB
 
 ```bash
 helm repo add eks https://aws.github.io/eks-charts
@@ -410,7 +443,7 @@ helm install aws-load-balancer-controller \
   --version 1.14.0
 ```
 
-Verify the load-balancer is installed and running:
+#### Verify the load-balancer is installed and running
 
 ```bash
 kubectl get deployment -n kube-system aws-load-balancer-controller
@@ -457,7 +490,8 @@ spec:
 EOF
 ```
 
-Create the Route 53 record for the apex domain
+#### Create the Route 53 record for the apex domain
+
 First get the ALB DNS name from the Ingress:
 
 ```bash
@@ -465,7 +499,7 @@ kubectl get ingress retail-store-ingress \
   -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'; echo
 ```
 
-Then get the ALB's hosted zone ID:
+#### Then get the ALB's hosted zone ID
 
 ```bash
 ALB_DNS=$(kubectl get ingress retail-store-ingress \
@@ -480,7 +514,7 @@ echo "$ALB_DNS"
 echo "$ALB_ZONE_ID"
 ```
 
-Now get your Route 53 hosted-zone ID:
+#### Now get your Route 53 hosted-zone ID
 
 ```bash
 ZONE_ID=$(aws route53 list-hosted-zones-by-name \
@@ -491,7 +525,7 @@ ZONE_ID=$(aws route53 list-hosted-zones-by-name \
 echo "$ZONE_ID"
 ```
 
-Then create the apex A Alias:
+#### Then create the apex A Alias
 
 ```bash
 aws route53 change-resource-record-sets \
@@ -524,10 +558,10 @@ Test the site is up and running and is ready to be used in a demo
 curl -I https://cloudsec-demos.fr
 ```
 
-And final verification, the vulenerabl web-shop for demo purposes is up and running
+And final verification, the vulnerable web-shop for demo purposes is up and running
 
 ```bash
- curl -I https://cloudsec-demos.fr
+curl -I https://cloudsec-demos.fr
 HTTP/2 200
 date: Tue, 01 Sep 2026 21:09:16 GMT
 content-type: text/plain;charset=UTF-8
@@ -548,13 +582,13 @@ ACM certificate + validation CNAME
 local project files/scripts
 ```
 
-First delete the Ingress and let AWS Load Balancer Controller remove the ALB:
+#### First delete the Ingress and let AWS Load Balancer Controller remove the ALB
 
 ```bash
 kubectl delete -f ingress.yaml
 ```
 
-Watch until the ALB disappears:
+#### Watch until the ALB disappears
 
 ```bash
 aws elbv2 describe-load-balancers \
@@ -563,13 +597,13 @@ aws elbv2 describe-load-balancers \
   --output table
 ```
 
-Then delete the application:
+#### Then delete the application
 
 ```bash
 kubectl delete -f kubernetes.yaml
 ```
 
-Then delete the EKS cluster:
+#### Then delete the EKS cluster
 
 ```bash
 eksctl delete cluster \
@@ -577,7 +611,8 @@ eksctl delete cluster \
   --region us-east-1
 ```
 
-Delete the apex ALB alias because that particular ALB is about to disappear, every new ALB will get a new DNS name.
+Delete the apex ALB alias because that particular ALB is about to disappear,
+every new ALB will get a new DNS name.
 
 ```bash
 ZONE_ID=$(aws route53 list-hosted-zones-by-name \
